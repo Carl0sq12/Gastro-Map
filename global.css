@@ -1,0 +1,23 @@
+@import "tailwindcss";
+@import "uniwind";
+
+@theme {
+  --color-dominos-blue: #006491;
+  --color-dominos-red: #E31837;
+  --color-dominos-white: #FFFFFF;
+
+  --color-primary: #006491;
+  --color-accent: #E31837;
+
+  --color-surface: #FFFFFF;
+  --color-surface-alt: #F2F4F6;
+  --color-surface-dark: #1A1A1A;
+  --color-surface-dark-alt: #2A2A2A;
+
+  --color-text-primary: #1A1A1A;
+  --color-text-secondary: #6B7280;
+  --color-text-dark: #ECEDEE;
+  --color-text-dark-secondary: #9BA1A6;
+
+  --font-sans: "system-ui", "Helvetica Neue", sans-serif;
+}
