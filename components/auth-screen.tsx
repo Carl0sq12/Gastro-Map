@@ -31,12 +31,22 @@ type FormData = {
   confirmPassword: string;
 };
 
+type RegisterInput = {
+  apellido: string;
+  correo: string;
+  nombre: string;
+  password: string;
+  telefono: string;
+};
+
 export function AuthScreen() {
   const { signIn } = useAuth();
 
-  const [mode, setMode] = useState<AuthMode>('signIn');
+  const [mode, setMode] =
+    useState<AuthMode>('signIn');
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] =
+    useState(false);
 
   const isSignIn = mode === 'signIn';
 
@@ -63,11 +73,22 @@ export function AuthScreen() {
     setIsSubmitting(true);
 
     try {
-      const email = formData.email.trim().toLowerCase();
+      const email =
+        formData.email.trim().toLowerCase();
 
       // LOGIN
       if (isSignIn) {
-        await signIn(email, formData.password);
+        const result = await signIn(
+          email,
+          formData.password,
+        );
+
+        // por si tu signIn devuelve error
+        if ((result as any)?.error) {
+          throw new Error(
+            (result as any).error.message,
+          );
+        }
 
         router.replace('/home');
       }
@@ -75,11 +96,14 @@ export function AuthScreen() {
       // REGISTRO
       else {
         await handleRegister({
-          nombre: formData.firstName.trim(),
-          apellido: formData.lastName.trim(),
+          nombre:
+            formData.firstName.trim(),
+          apellido:
+            formData.lastName.trim(),
           correo: email,
           password: formData.password,
-          telefono: formData.phone.trim(),
+          telefono:
+            formData.phone.trim(),
         });
 
         Alert.alert(
@@ -92,6 +116,11 @@ export function AuthScreen() {
         reset();
       }
     } catch (error) {
+      console.log(
+        'ERROR COMPLETO:',
+        error,
+      );
+
       const message =
         error instanceof Error
           ? error.message
@@ -126,7 +155,6 @@ export function AuthScreen() {
           </View>
 
           <View style={styles.form}>
-
             {/* NOMBRE */}
             {!isSignIn && (
               <>
@@ -134,15 +162,20 @@ export function AuthScreen() {
                   control={control}
                   name="firstName"
                   rules={{
-                    required: 'El nombre es obligatorio',
+                    required:
+                      'El nombre es obligatorio',
                     pattern: {
-                      value: /^[A-Za-zÁÉÍÓÚáéíóúñÑ\s]+$/,
+                      value:
+                        /^[A-Za-zÁÉÍÓÚáéíóúñÑ\s]+$/,
                       message:
                         'Solo se permiten letras',
                     },
                   }}
                   render={({
-                    field: { onChange, value },
+                    field: {
+                      onChange,
+                      value,
+                    },
                   }) => (
                     <TextInput
                       placeholder="Nombre"
@@ -155,8 +188,13 @@ export function AuthScreen() {
                 />
 
                 {errors.firstName && (
-                  <ThemedText style={styles.error}>
-                    {errors.firstName.message}
+                  <ThemedText
+                    style={styles.error}
+                  >
+                    {
+                      errors.firstName
+                        .message
+                    }
                   </ThemedText>
                 )}
 
@@ -168,13 +206,17 @@ export function AuthScreen() {
                     required:
                       'El apellido es obligatorio',
                     pattern: {
-                      value: /^[A-Za-zÁÉÍÓÚáéíóúñÑ\s]+$/,
+                      value:
+                        /^[A-Za-zÁÉÍÓÚáéíóúñÑ\s]+$/,
                       message:
                         'Solo se permiten letras',
                     },
                   }}
                   render={({
-                    field: { onChange, value },
+                    field: {
+                      onChange,
+                      value,
+                    },
                   }) => (
                     <TextInput
                       placeholder="Apellido"
@@ -187,8 +229,13 @@ export function AuthScreen() {
                 />
 
                 {errors.lastName && (
-                  <ThemedText style={styles.error}>
-                    {errors.lastName.message}
+                  <ThemedText
+                    style={styles.error}
+                  >
+                    {
+                      errors.lastName
+                        .message
+                    }
                   </ThemedText>
                 )}
               </>
@@ -199,7 +246,8 @@ export function AuthScreen() {
               control={control}
               name="email"
               rules={{
-                required: 'El correo es obligatorio',
+                required:
+                  'El correo es obligatorio',
                 pattern: {
                   value:
                     /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
@@ -261,7 +309,7 @@ export function AuthScreen() {
               </ThemedText>
             )}
 
-            {/* CONFIRMAR PASSWORD */}
+            {/* CONFIRM PASSWORD */}
             {!isSignIn && (
               <>
                 <Controller
@@ -271,11 +319,15 @@ export function AuthScreen() {
                     required:
                       'Confirma tu contraseña',
                     validate: value =>
-                      value === passwordValue ||
+                      value ===
+                        passwordValue ||
                       'Las contraseñas no coinciden',
                   }}
                   render={({
-                    field: { onChange, value },
+                    field: {
+                      onChange,
+                      value,
+                    },
                   }) => (
                     <TextInput
                       secureTextEntry
@@ -289,9 +341,12 @@ export function AuthScreen() {
                 />
 
                 {errors.confirmPassword && (
-                  <ThemedText style={styles.error}>
+                  <ThemedText
+                    style={styles.error}
+                  >
                     {
-                      errors.confirmPassword
+                      errors
+                        .confirmPassword
                         .message
                     }
                   </ThemedText>
@@ -320,7 +375,10 @@ export function AuthScreen() {
                     },
                   }}
                   render={({
-                    field: { onChange, value },
+                    field: {
+                      onChange,
+                      value,
+                    },
                   }) => (
                     <TextInput
                       keyboardType="numeric"
@@ -342,7 +400,9 @@ export function AuthScreen() {
                 />
 
                 {errors.phone && (
-                  <ThemedText style={styles.error}>
+                  <ThemedText
+                    style={styles.error}
+                  >
                     {errors.phone.message}
                   </ThemedText>
                 )}
@@ -357,7 +417,8 @@ export function AuthScreen() {
                 styles.primaryButton,
                 {
                   opacity:
-                    pressed || isSubmitting
+                    pressed ||
+                    isSubmitting
                       ? 0.7
                       : 1,
                 },
@@ -367,7 +428,9 @@ export function AuthScreen() {
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <ThemedText
-                  style={styles.primaryButtonText}
+                  style={
+                    styles.primaryButtonText
+                  }
                 >
                   {isSignIn
                     ? 'Iniciar sesión'
@@ -402,14 +465,6 @@ export function AuthScreen() {
   );
 }
 
-type RegisterInput = {
-  apellido: string;
-  correo: string;
-  nombre: string;
-  password: string;
-  telefono: string;
-};
-
 async function handleRegister({
   apellido,
   correo,
@@ -417,37 +472,68 @@ async function handleRegister({
   password,
   telefono,
 }: RegisterInput) {
+  console.log(
+    'INICIANDO REGISTRO...',
+  );
 
+  // CREAR USUARIO EN AUTH
   const { data, error } =
     await supabase.auth.signUp({
       email: correo,
       password,
     });
 
+  console.log(
+    'RESPUESTA AUTH:',
+    data,
+  );
+
   if (error) {
-    throw error;
+    console.log(
+      'ERROR AUTH:',
+      error,
+    );
+
+    throw new Error(error.message);
   }
 
   const userId = data.user?.id;
 
   if (!userId) {
     throw new Error(
-      'No se pudo crear el usuario',
+      'No se pudo obtener el ID del usuario',
     );
   }
 
+  console.log('USER ID:', userId);
+
+  // INSERTAR PERFIL
   const { error: profileError } =
-    await supabase.from('usuarios').insert({
-      id: userId,
-      nombre,
-      apellido,
-      correo,
-      telefono,
-    });
+    await supabase
+      .from('usuarios')
+      .insert({
+        id: userId,
+        nombre,
+        apellido,
+        correo,
+        telefono,
+        password,
+      });
+
+  console.log(
+    'ERROR PERFIL:',
+    profileError,
+  );
 
   if (profileError) {
-    throw profileError;
+    throw new Error(
+      profileError.message,
+    );
   }
+
+  console.log(
+    'REGISTRO COMPLETADO',
+  );
 }
 
 const styles = StyleSheet.create({

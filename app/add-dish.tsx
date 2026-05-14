@@ -3,7 +3,9 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -24,6 +26,7 @@ import Animated, {
 
 import { insertDish } from '@/lib/dish-service';
 import { supabase } from '@/lib/supabase';
+import LocationPicker from '@/components/location-picker';
 
 const AnimatedPressable =
   Animated.createAnimatedComponent(Pressable);
@@ -31,13 +34,25 @@ const AnimatedPressable =
 type SaveDishInput = {
   name: string;
   photoUri: string;
+  latitude: number;
+  longitude: number;
 };
+
+type Coordinates = {
+  lat: number;
+  lng: number;
+};
+
+type LocationMode = 'automatic' | 'manual';
 
 export default function AddDishScreen() {
   const queryClient = useQueryClient();
 
   const [name, setName] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [locationMode, setLocationMode] = useState<LocationMode | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<Coordinates | null>(null);
+  const [isResolvingLocation, setIsResolvingLocation] = useState(false);
 
   const scale = useSharedValue(1);
 
@@ -143,14 +158,45 @@ export default function AddDishScreen() {
       return;
     }
 
+    if (!selectedLocation) {
+      Alert.alert(
+        'Ubicacion requerida',
+        'Selecciona una ubicacion automatica o manual antes de registrar el plato.',
+      );
+
+      return;
+    }
+
     saveDishMutation.mutate({
+      latitude: selectedLocation.lat,
+      longitude: selectedLocation.lng,
       name: trimmedName,
       photoUri,
     });
   };
 
+  const handleAutomaticLocation = async () => {
+    try {
+      setIsResolvingLocation(true);
+      const coords = await getAutomaticCoordinates();
+      setLocationMode('automatic');
+      setSelectedLocation(coords);
+    } catch (error) {
+      Alert.alert('Ubicacion no disponible', getSaveErrorMessage(error));
+    } finally {
+      setIsResolvingLocation(false);
+    }
+  };
+
+  const handleManualLocationSelect = (coords: Coordinates) => {
+    setLocationMode('manual');
+    setSelectedLocation(coords);
+  };
+
   return (
-    <View style={styles.container}>
+    <ScrollView
+      contentContainerStyle={styles.contentContainer}
+      style={styles.container}>
       <Stack.Screen
         options={{
           title: 'Nuevo plato',
@@ -193,10 +239,67 @@ export default function AddDishScreen() {
         </View>
       )}
 
-      <Text style={styles.helperText}>
-        La ubicacion se capturara automaticamente
-        al registrar.
-      </Text>
+      <View style={styles.locationSection}>
+        <Text style={styles.label}>Ubicacion del plato</Text>
+
+        <View style={styles.locationActions}>
+          <Pressable
+            disabled={isResolvingLocation}
+            onPress={handleAutomaticLocation}
+            style={[
+              styles.locationOptionButton,
+              locationMode === 'automatic' ? styles.locationOptionButtonActive : undefined,
+              isResolvingLocation ? styles.disabled : undefined,
+            ]}>
+            <Text
+              style={[
+                styles.locationOptionText,
+                locationMode === 'automatic' ? styles.locationOptionTextActive : undefined,
+              ]}>
+              {isResolvingLocation ? 'Obteniendo ubicacion...' : 'Usar mi ubicacion actual'}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => setLocationMode('manual')}
+            style={[
+              styles.locationOptionButton,
+              locationMode === 'manual' ? styles.locationOptionButtonActive : undefined,
+            ]}>
+            <Text
+              style={[
+                styles.locationOptionText,
+                locationMode === 'manual' ? styles.locationOptionTextActive : undefined,
+              ]}>
+              Seleccionar manualmente
+            </Text>
+          </Pressable>
+        </View>
+
+        {locationMode === 'manual' ? (
+          <LocationPicker
+            latitude={selectedLocation?.lat ?? null}
+            longitude={selectedLocation?.lng ?? null}
+            onSelectLocation={handleManualLocationSelect}
+          />
+        ) : null}
+
+        {selectedLocation ? (
+          <Text style={styles.coordinatesText}>
+            Lat: {selectedLocation.lat.toFixed(5)} | Lon: {selectedLocation.lng.toFixed(5)}
+          </Text>
+        ) : (
+          <Text style={styles.helperText}>
+            Elige una de las dos opciones para guardar la ubicacion del plato.
+          </Text>
+        )}
+
+        {Platform.OS !== 'web' && locationMode === 'manual' ? (
+          <Text style={styles.helperText}>
+            Toca el mapa para fijar la ubicacion manual del plato.
+          </Text>
+        ) : null}
+      </View>
 
       <AnimatedPressable
         disabled={saveDishMutation.isPending}
@@ -223,11 +326,13 @@ export default function AddDishScreen() {
           </Text>
         )}
       </AnimatedPressable>
-    </View>
+    </ScrollView>
   );
 }
 
 async function saveDish({
+  latitude,
+  longitude,
   name,
   photoUri,
 }: SaveDishInput) {
@@ -246,8 +351,10 @@ async function saveDish({
     );
   }
 
-  const location =
-    await getCurrentLocation();
+  const locationMetadata = await reverseGeocodeCoordinates({
+    lat: latitude,
+    lng: longitude,
+  });
 
   const photoUrl =
     await uploadDishPhoto(
@@ -256,56 +363,66 @@ async function saveDish({
     );
 
   return insertDish({
-    city: location.city,
-    country: location.country,
-    latitude: location.latitude,
-    longitude: location.longitude,
+    city: locationMetadata.city,
+    country: locationMetadata.country,
+    latitude,
+    longitude,
     name,
     photo_uri: photoUrl,
     user_id: user.id,
   });
 }
 
-async function getCurrentLocation() {
-  const { status } =
-    await Location.requestForegroundPermissionsAsync();
+async function getAutomaticCoordinates(): Promise<Coordinates> {
+  if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.geolocation) {
+    return new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          resolve({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+        },
+        () => reject(new Error('No se pudo obtener tu ubicacion actual.')),
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+        },
+      );
+    });
+  }
+
+  const { status } = await Location.requestForegroundPermissionsAsync();
 
   if (status !== 'granted') {
-    throw new Error(
-      'No se puede registrar el plato sin permiso de ubicacion.'
-    );
+    throw new Error('No se concedio permiso para acceder a la ubicacion.');
   }
 
-  const currentLocation =
-    await Location.getCurrentPositionAsync({});
-
-  const [geocode] =
-    await Location.reverseGeocodeAsync({
-      latitude:
-        currentLocation.coords.latitude,
-      longitude:
-        currentLocation.coords.longitude,
-    });
-
-  const city =
-    geocode?.city || geocode?.region;
-
-  const country = geocode?.country;
-
-  if (!city || !country) {
-    throw new Error(
-      'No se pudo resolver ciudad y pais.'
-    );
-  }
+  const currentLocation = await Location.getCurrentPositionAsync({});
 
   return {
-    city,
-    country,
-    latitude:
-      currentLocation.coords.latitude,
-    longitude:
-      currentLocation.coords.longitude,
+    lat: currentLocation.coords.latitude,
+    lng: currentLocation.coords.longitude,
   };
+}
+
+async function reverseGeocodeCoordinates({ lat, lng }: Coordinates) {
+  try {
+    const [geocode] = await Location.reverseGeocodeAsync({
+      latitude: lat,
+      longitude: lng,
+    });
+
+    return {
+      city: geocode?.city || geocode?.region || null,
+      country: geocode?.country || null,
+    };
+  } catch {
+    return {
+      city: null,
+      country: null,
+    };
+  }
 }
 
 async function uploadDishPhoto(
@@ -417,7 +534,11 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: '#FFFFFF',
     flex: 1,
+  },
+
+  contentContainer: {
     gap: 16,
+    paddingBottom: 40,
     paddingHorizontal: 24,
     paddingTop: 32,
   },
@@ -476,10 +597,48 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
 
+  locationSection: {
+    gap: 12,
+  },
+
+  locationActions: {
+    gap: 12,
+  },
+
+  locationOptionButton: {
+    alignItems: 'center',
+    borderColor: '#0A7EA4',
+    borderRadius: 8,
+    borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: 52,
+    paddingHorizontal: 16,
+  },
+
+  locationOptionButtonActive: {
+    backgroundColor: '#0A7EA4',
+  },
+
+  locationOptionText: {
+    color: '#0A7EA4',
+    fontSize: 15,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+
+  locationOptionTextActive: {
+    color: '#FFFFFF',
+  },
+
   helperText: {
     color: '#6B7280',
     fontSize: 14,
-    textAlign: 'center',
+  },
+
+  coordinatesText: {
+    color: '#111827',
+    fontSize: 14,
+    fontWeight: '600',
   },
 
   saveButton: {

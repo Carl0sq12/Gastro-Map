@@ -55,6 +55,7 @@ function RootNavigator() {
       <Stack.Screen name="home" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="add-dish" options={{ title: 'Nuevo plato', presentation: 'modal' }} />
+      <Stack.Screen name="dish/[id]" options={{ title: 'Detalle del plato' }} />
       <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
     </Stack>
   );

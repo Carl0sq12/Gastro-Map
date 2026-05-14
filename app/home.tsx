@@ -1,15 +1,15 @@
-import { useEffect, useMemo } from 'react';
-import { Alert, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
+import { useEffect, useMemo } from 'react';
+import { Alert, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
-  FadeInDown,
-  FadeOutLeft,
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
+    FadeInDown,
+    FadeOutLeft,
+    runOnJS,
+    useAnimatedStyle,
+    useSharedValue,
+    withSpring,
 } from 'react-native-reanimated';
 
 import { deleteDish, fetchDishes } from '@/lib/dish-service';
@@ -162,17 +162,24 @@ function DishCard({
           entering={FadeInDown.delay(index * 45)}
           exiting={FadeOutLeft}
           style={[styles.card, cardStyle]}>
-          {dish.photo_uri ? (
-            <Image source={{ uri: dish.photo_uri }} style={styles.cardImage} />
-          ) : (
-            <View style={styles.photoPlaceholder}>
-              <Text style={styles.mutedText}>Sin foto</Text>
-            </View>
-          )}
-          <Text style={styles.cardTitle}>{dish.name}</Text>
-          <Text style={styles.locationText}>
-            {dish.city}, {dish.country}
-          </Text>
+          <Pressable onPress={() => router.push({ pathname: '/dish/[id]', params: { id: dish.id } })}>
+            {dish.photo_uri ? (
+              <Image source={{ uri: dish.photo_uri }} style={styles.cardImage} />
+            ) : (
+              <View style={styles.photoPlaceholder}>
+                <Text style={styles.mutedText}>Sin foto</Text>
+              </View>
+            )}
+            <Text style={styles.cardTitle}>{dish.name}</Text>
+            <Text style={styles.locationText}>
+              {dish.city ?? 'Ciudad no disponible'}, {dish.country ?? 'Pais no disponible'}
+            </Text>
+            {dish.latitude !== null && dish.longitude !== null ? (
+              <Text style={styles.locationText}>
+                Lat: {dish.latitude.toFixed(5)}, Lon: {dish.longitude.toFixed(5)}
+              </Text>
+            ) : null}
+          </Pressable>
         </Animated.View>
       </GestureDetector>
     </View>
